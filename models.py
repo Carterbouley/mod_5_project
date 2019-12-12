@@ -2,10 +2,33 @@ import pandas as pd
 import numpy as np
 
 import matplotlib.pyplot as plt
+from sklearn.externals.six import StringIO
+from IPython.display import Image  
+from sklearn.tree import export_graphviz
+import pydotplus
+
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import BaggingClassifier, RandomForestClassifier
+import models as md
+
+import pandas as pd
+import numpy as np
+
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import BaggingClassifier, RandomForestClassifier
 
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import BaggingClassifier, RandomForestClassifier
+from sklearn.metrics import make_scorer, f1_score, roc_curve, auc
 
 import pandas as pd
 import numpy as np
@@ -26,11 +49,7 @@ def plot_feature_importances(model, X_train):
     plt.xlabel('Feature importance')
     plt.ylabel('Feature')
     
-def print_metrics(y_true, y_pred):
-    print("Precision Score: {}".format(precision_score(y_true, y_pred)))
-    print("Recall Score: {}".format(recall_score(y_true, y_pred)))
-    print("Accuracy Score: {}".format(accuracy_score(y_true, y_pred)))
-    print("F1 Score: {}".format(f1_score(y_true, y_pred)))
+def print_AUC(y_true, y_pred):
     print("AUC Score: {}".format(roc_auc_score(y_true, y_pred)))
     
 def scorer():
@@ -51,37 +70,96 @@ def DecisionTree(X_train, X_test, y_train, y_test):
     tree = DecisionTreeClassifier(random_state=123)
     
     tree.fit(X_train, y_train)
-    pred = tree.predict(X_test)
     
+    pred = tree.predict(X_test)
+    prob = tree.predict_proba(X_test)
+    fpr, tpr, thresholds = roc_curve(y_test, prob[:,1])
+    roc_auc = auc(fpr, tpr)
+    
+    print("Training Accuracy for Decision Tree Classifier: {:.4}%".format(tree.score(X_train, y_train) * 100))
+    print("Testing Accuracy for Decision Tree Classifier: {:.4}%".format(tree.score(X_test, y_test) * 100))
+    print("\n")
+          
     matrix_classification_report(y_test, pred)
     
     plot_feature_importances(tree, X_train)
     
-    return tree
+    
 
+def PlotDecisionTree(X_train, X_test, y_train, y_test):
+    
+    tree = DecisionTreeClassifier(max_depth=4, random_state=123)
+    
+    tree.fit(X_train, y_train)
+    
+    pred = tree.predict(X_test)
+    
+    dot_data = StringIO()
+    
+    export_graphviz(tree, out_file=dot_data,  
+                    filled=True, rounded=True,
+                    special_characters=True,feature_names=X_train.columns)
+    graph = pydotplus.graph_from_dot_data(dot_data.getvalue())  
+    
+    image = Image(graph.create_png())
+    
+    return image
+
+def PlotRocCurve(X_train, X_test, y_train, y_test):
+    tree = DecisionTreeClassifier(random_state=123)
+    
+    tree.fit(X_train, y_train)
+
+    prob = tree.predict_proba(X_test)
+    fpr, tpr, thresholds = roc_curve(y_test, prob[:,1])
+    roc_auc = auc(fpr, tpr)
+    
+    plt.plot(fpr,tpr)
+    
+    print('---------')
+    print("AUC Score: {}".format(roc_auc))
+    print('---------')
+    
 def BaggedTree(X_train, X_test, y_train, y_test):
-    bagged_tree = BaggingClassifier(random_state=123)
+    tree = BaggingClassifier(DecisionTreeClassifier(random_state=123))
     
-    bagged_tree.fit(X_train, y_train)
-    pred = bagged_tree.predict(X_test)
+    tree.fit(X_train, y_train)
+    pred = tree.predict(X_test)
+    prob = tree.predict_proba(X_test)
+    fpr, tpr, thresholds = roc_curve(y_test, prob[:,1])
+    roc_auc = auc(fpr, tpr)
     
     matrix_classification_report(y_test, pred)
 
-    # Training accuracy score
-    print("Training Accuracy for Bagging Tree Classifier: {:.4}%".format(bagged_tree.score(X_train, y_train) * 100))
-    print("Testing Accuracy for Bagging Tree Classifier: {:.4}%".format(bagged_tree.score(X_test, y_test) * 100))
-    
-    return bagged_tree
+    print("Training Accuracy for Bagging Tree Classifier: {:.4}%".format(tree.score(X_train, y_train) * 100))
+    print("Testing Accuracy for Bagging Tree Classifier: {:.4}%".format(tree.score(X_test, y_test) * 100))
+    print("\n") 
 
-def RandomForrest(X_train, X_test, y_train, y_test):
-    forest = RandomForestClassifier()
+    print('---------')
+    print("AUC Score: {}".format(roc_auc))
+    print('---------')
+   
+    plt.plot(fpr,tpr)
     
-    forest.fit(X_train, y_train)
-    pred = forest.predict(X_test)
+
+def RandomForest(X_train, X_test, y_train, y_test):
+    tree = RandomForestClassifier(random_state=123)
+    
+    tree.fit(X_train, y_train)
+    pred = tree.predict(X_test)
+    prob = tree.predict_proba(X_test)
+    fpr, tpr, thresholds = roc_curve(y_test, prob[:,1])
+    roc_auc = auc(fpr, tpr)
     
     matrix_classification_report(y_test, pred)
     
-    print("Training Accuracy for Random Forest Classifier {:.4}%".format(forest.score(X_train, y_train) * 100))
-    print("Testing Accuracy for Random Forest Classifier: {:.4}%".format(forest.score(X_test, y_test) * 100))
+    print("Training Accuracy for Random Forest Classifier {:.4}%".format(tree.score(X_train, y_train) * 100))
+    print("Testing Accuracy for Random Forest Classifier: {:.4}%".format(tree.score(X_test, y_test) * 100))
+    print("\n") 
+
+    print('---------')
+    print("AUC Score: {}".format(roc_auc))
+    print('---------')
+   
+    plt.plot(fpr,tpr)
     
-    return forest
