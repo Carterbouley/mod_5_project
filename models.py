@@ -1,45 +1,18 @@
 import pandas as pd
 import numpy as np
 
-import matplotlib.pyplot as plt
-from sklearn.externals.six import StringIO
-from IPython.display import Image  
-from sklearn.tree import export_graphviz
-import pydotplus
-
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import BaggingClassifier, RandomForestClassifier
 import models as md
 
-import pandas as pd
-import numpy as np
-
 import matplotlib.pyplot as plt
+import pydotplus
+from sklearn.externals.six import StringIO
+from IPython.display import Image  
+
 from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import DecisionTreeClassifier, export_graphviz
 from sklearn.ensemble import BaggingClassifier, RandomForestClassifier
-
-
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import BaggingClassifier, RandomForestClassifier
-from sklearn.metrics import make_scorer, f1_score, roc_curve, auc
-
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import BaggingClassifier, RandomForestClassifier
-from sklearn.metrics import fbeta_score, make_scorer
-from sklearn.metrics import f1_score
-
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import make_scorer, f1_score, roc_curve, auc, accuracy_score, confusion_matrix, classification_report
 
 def plot_feature_importances(model, X_train):
     n_features = X_train.shape[1]
@@ -85,7 +58,6 @@ def DecisionTree(X_train, X_test, y_train, y_test):
     plot_feature_importances(tree, X_train)
     
     
-
 def PlotDecisionTree(X_train, X_test, y_train, y_test):
     
     tree = DecisionTreeClassifier(max_depth=4, random_state=123)
@@ -178,4 +150,41 @@ def RandomForest(X_train, X_test, y_train, y_test, criterion_ = 'gini', max_dept
     print('---------')
    
     plt.plot(fpr,tpr)
+      
+def KNN(X_train, X_test, y_train, y_test, n_neighbors_ = 1, leaf_size_ = 1):
     
+    tree = KNeighborsClassifier(n_neighbors = n_neighbors_, 
+                             leaf_size = leaf_size_)
+    
+    tree.fit(X_train, y_train)
+    
+    pred = tree.predict(X_test)
+    prob = tree.predict_proba(X_test)
+    fpr, tpr, thresholds = roc_curve(y_test, prob[:,1])
+    roc_auc = auc(fpr, tpr)
+    
+    matrix_classification_report(y_test, pred)
+
+    print("Training Accuracy for KNN Classifier: {:.4}%".format(tree.score(X_train, y_train) * 100))
+    print("Testing Accuracy for KNN Classifier: {:.4}%".format(tree.score(X_test, y_test) * 100))
+    print("\n") 
+
+    print('---------')
+    print("AUC Score: {}".format(roc_auc))
+    print('---------')
+   
+    plt.plot(fpr,tpr)   
+    
+def OptimiseKNN(X_train, X_test, y_train, y_test):
+    
+    tree = KNeighborsClassifier()
+
+    param_grid = {'n_neighbors':[10,11,12,13,14,15,16,17,18],
+                  'leaf_size' : [5,10,15,20,25,30,35]   
+                    }
+
+    gs_knn = GridSearchCV(tree, param_grid, cv=5, scoring=scorer())
+    
+    gs_knn.fit(X_train, y_train)    
+    
+    print(gs_knn.best_params_)
