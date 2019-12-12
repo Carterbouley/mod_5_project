@@ -243,7 +243,7 @@ def OptimiseLogReg(X_train, X_test, y_train, y_test):
     param_grid = {'max_iter' : [75,100,1000,5000]
                     }                 
 
-    gs_lr = GridSearchCV(tree, param_grid, cv=5, scoring=md.scorer())
+    gs_lr = GridSearchCV(tree, param_grid, cv=5, scoring=scorer())
     
     gs_lr.fit(X_train, y_train)
     
