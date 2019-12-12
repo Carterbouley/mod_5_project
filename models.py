@@ -105,8 +105,8 @@ def PlotDecisionTree(X_train, X_test, y_train, y_test):
     
     return image
 
-def PlotRocCurve(X_train, X_test, y_train, y_test):
-    tree = DecisionTreeClassifier(random_state=123)
+def PlotRocCurve(X_train, X_test, y_train, y_test, model):
+    tree = model(random_state=123)
     
     tree.fit(X_train, y_train)
 
@@ -120,8 +120,10 @@ def PlotRocCurve(X_train, X_test, y_train, y_test):
     print("AUC Score: {}".format(roc_auc))
     print('---------')
     
-def BaggedTree(X_train, X_test, y_train, y_test):
-    tree = BaggingClassifier(DecisionTreeClassifier(random_state=123))
+def BaggedTree(X_train, X_test, y_train, y_test, n_estimators_ = 1, max_features_ = 1):
+    
+    tree = BaggingClassifier(DecisionTreeClassifier(random_state = 123), n_estimators = n_estimators_, 
+                             max_features = max_features_)
     
     tree.fit(X_train, y_train)
     pred = tree.predict(X_test)
@@ -140,10 +142,24 @@ def BaggedTree(X_train, X_test, y_train, y_test):
     print('---------')
    
     plt.plot(fpr,tpr)
-    
 
-def RandomForest(X_train, X_test, y_train, y_test):
-    tree = RandomForestClassifier(random_state=123)
+def OptimiseBagging(X_train, X_test, y_train, y_test):
+    
+    tree = BaggingClassifier(DecisionTreeClassifier(random_state=123))
+    
+    param_grid = {'n_estimators': [7,8,9,10,11,12],
+                  'max_features' : [13,14,15,16,17,18]   
+                    }                 
+
+    gs_bt = GridSearchCV(tree, param_grid, cv=5, scoring=scorer())
+    
+    gs_bt.fit(X_train, y_train)
+    
+    print(gs_bt.best_params_)    
+
+def RandomForest(X_train, X_test, y_train, y_test, criterion_ = 'gini', max_depth_ = 1, max_features_ = 1, n_estimators_ = 1):
+    tree = RandomForestClassifier(random_state=123, criterion = criterion_, max_depth = max_depth_, 
+                                  max_features = max_features_, n_estimators = n_estimators_)
     
     tree.fit(X_train, y_train)
     pred = tree.predict(X_test)
