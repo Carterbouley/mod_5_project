@@ -14,12 +14,13 @@ from sklearn.tree import DecisionTreeClassifier, export_graphviz
 from sklearn.ensemble import BaggingClassifier, RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
+from sklearn.decomposition import PCA
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import make_scorer, f1_score, roc_curve, auc, accuracy_score, confusion_matrix, classification_report, roc_auc_score
 
 def XySplit(df):
     y = df['Default']
-    X = df.drop(columns=['Default', 'ID'], axis=1)
+    X = df.drop(columns=['Default'], axis=1)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = .2, random_state=123)
 
 
@@ -203,7 +204,7 @@ def OptimiseKNN(X_train, X_test, y_train, y_test):
     
     tree = KNeighborsClassifier()
 
-    param_grid = {'n_neighbors':[10,11,12,13,14,15,16,17,18],
+    param_grid = {'n_neighbors':[8,9,10,11,12,13,14],
                   'leaf_size' : [5,10,15,20,25,30,35]   
                     }
 
@@ -239,7 +240,7 @@ def LogRegression(X_train, X_test, y_train, y_test, max_iter_ = 1):
     print("AUC Score: {}".format(roc_auc))
     print('---------')
    
-    ns_fpr, ns_tpr, _ = roc_curve(y_test, prob)
+    ns_fpr, ns_tpr, _ = roc_curve(y_test, prob[:,1])
     lr_fpr, lr_tpr, _ = roc_curve(y_test, prob[:,1])
     
     plt.plot(ns_fpr, ns_tpr, linestyle='--', label='No Skill')
@@ -248,23 +249,6 @@ def LogRegression(X_train, X_test, y_train, y_test, max_iter_ = 1):
     plt.ylabel('True Positive Rate')
     plt.legend()
     plt.show()
-    
-    feature_importance=pd.DataFrame(np.hstack((np.array([X_test.columns[:]]).T, tree.coef_.T)), 
-                                    columns=['feature', 'importance'])
-    
-    mean = feature_importance.importance.mean()
-    std = feature_importance.importance.std()
-    coef_lista = []
-    for row in feature_importance.importance:
-        new_calc = ((row - mean)/(std))
-        coef_lista.append(new_calc)
-        
-    feature_importance['coef_importance_scaled'] = coef_lista
-    
-
-    importances = feature_importance.reindex(feature_importance.coef_importance_scaled.abs().sort_values(ascending = False).index)
-    
-    return importances
     
 def OptimiseLogReg(X_train, X_test, y_train, y_test):
     
@@ -359,4 +343,14 @@ def SVM(X_train, X_test, y_train, y_test):
     # show the plot
     plt.show()
     
+def PCA_DF(df):
+    pca = PCA(random_state = 123)
+
+    pca = pca.fit_transform(df)
+
+    pca = pd.DataFrame(pca[:, :8], index=df.index)
+
+    pca_df = pca.join(df['Default'])
+    pca_df = pca_df.rename(columns={0:'x1',1:'x2',2:'x3',3:'x4',4:'x5',5:'x6',6:'x7',7:'x8'}, inplace=True)
     
+    return pca_df
