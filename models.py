@@ -18,13 +18,12 @@ from sklearn.metrics import make_scorer, f1_score, roc_curve, auc, accuracy_scor
 
 def XySplit(df):
     y = df['Default']
-    X = df.drop(columns=['Default'], axis=1)
+    X = df.drop(columns=['Default', 'ID'], axis=1)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = .2, random_state=123)
 
 
     sm = SMOTE(random_state = 123, sampling_strategy = 1.0)
     X_train,y_train  = sm.fit_sample(X_train, y_train)
-    X_test, y_test = sm.fit_sample(X_test, y_test)
     
     scale = StandardScaler()
     scale.fit(X_train)
@@ -236,6 +235,14 @@ def LogRegression(X_train, X_test, y_train, y_test, max_iter_ = 1):
    
     plt.plot(fpr,tpr)
     
+def Logfeatureimporance(X_train, X_test, y_train, y_test):
+    feature_importance=pd.DataFrame(np.hstack((np.array([X_test.columns[:]]).T, log_reg_clf.coef_.T)), 
+                                    columns=['feature', 'importance'])
+    scaler = MinMaxScaler()
+    coef_scaled = scaler.fit_transform(np.array(feature_importance.importance).reshape(-1,1))
+    importances = feature_importance.reindex(feature_importance.coef_importance_scaled.abs().sort_values(ascending = False).index)
+    return importances[:,10]
+    
 def OptimiseLogReg(X_train, X_test, y_train, y_test):
     
     tree = LogisticRegression()
@@ -253,3 +260,74 @@ def OptimiseLogReg(X_train, X_test, y_train, y_test):
     print(gs_lr.best_params_)
     
     return cvs.head(6)
+
+
+def svm_grid_searched(X_train, X_test, y_train, y_test):
+    
+        param_grid = [
+          {'C': [1, 10, 100, 1000], 'gamma': [0.001, 0.0001],'kernel': ['linear']},
+          {'C': [1, 10, 100, 1000], 'gamma': [0.001, 0.0001], 'kernel': ['rbf']},
+         ]
+
+
+        scores = ['precision', 'recall']
+
+        for score in scores:
+            print("# Tuning hyper-parameters for %s" % score)
+            print()
+
+            clf = GridSearchCV(
+                SVC(max_iter = 10000), param_grid, scoring='%s_macro' % score
+            )
+            clf.fit(X_rain, y_train)
+
+            print("Best parameters set found on development set:")
+            print()
+            print(clf.best_params_)
+            print()
+            print("Grid scores on development set:")
+            print()
+            means = clf.cv_results_['mean_test_score']
+            stds = clf.cv_results_['std_test_score']
+            for mean, std, params in zip(means, stds, clf.cv_results_['params']):
+                print("%0.3f (+/-%0.03f) for %r"
+                      % (mean, std * 2, params))
+            print()
+
+            print("Detailed classification report:")
+            print()
+            print("The model is trained on the full development set.")
+            print("The scores are computed on the full evaluation set.")
+            print()
+            y_true, y_pred = y_test, clf.predict(X_test)
+            print(classification_report(y_true, y_pred))
+            print()
+            
+def fit_svm(X_train, X_test, y_train, y_test):
+    svc_lin_clf = SVC(C=1, probability = True, max_iter = 20)
+    svc_lin_clf.fit(X_train, y_train)
+    y_true, y_pred = y_test, svc_lin_clf.predict(X_test)
+    y_probs = svc_lin_clf.predict_proba(X_test)
+    print(classification_report(y_true, y_pred))
+    
+    fpr, tpr, thresholds = roc_curve(y_test, y_probs[:,1])
+
+
+    ns_probs = [0 for _ in range(len(y_probs[:,1]))]
+    ns_auc = roc_auc_score(y_test, ns_probs)
+    svm_auc = roc_auc_score(y_test, y_probs[:,1])
+
+    print('No Skill: ROC AUC=%.3f' % (ns_auc))
+    print('Support Vinear Machines: ROC AUC=%.3f' % (svm_auc))
+    ns_fpr, ns_tpr, _ = roc_curve(y_test, ns_probs)
+    lr_fpr, lr_tpr, _ = roc_curve(y_test, y_probs[:,1])
+    plt.plot(ns_fpr, ns_tpr, linestyle='--', label='No Skill')
+    plt.plot(fpr, tpr, marker='.', label='Logistic')
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    # show the legend
+    plt.legend()
+    # show the plot
+    plt.show()
+    
+    
