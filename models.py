@@ -8,13 +8,14 @@ from IPython.display import Image
 
 from imblearn.over_sampling import SMOTE
 
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.tree import DecisionTreeClassifier, export_graphviz
 from sklearn.ensemble import BaggingClassifier, RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
 from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.metrics import make_scorer, f1_score, roc_curve, auc, accuracy_score, confusion_matrix, classification_report
+from sklearn.metrics import make_scorer, f1_score, roc_curve, auc, accuracy_score, confusion_matrix, classification_report, roc_auc_score
 
 def XySplit(df):
     y = df['Default']
@@ -30,6 +31,11 @@ def XySplit(df):
 
     X_train_scaled = scale.transform(X_train)
     X_test_scaled = scale.transform(X_test)
+    
+    X_train = pd.DataFrame(X_train)
+    X_test = pd.DataFrame(X_test)
+    X_train_scaled = pd.DataFrame(X_train_scaled)
+    X_test_scaled = pd.DataFrame(X_test_scaled)
     
     return X_train, X_test, y_train, y_test, X_train_scaled, X_test_scaled
 
@@ -205,7 +211,7 @@ def OptimiseKNN(X_train, X_test, y_train, y_test):
     
     gs_knn.fit(X_train, y_train)    
     
-    cvs = pd.DataFrame(gs_bt.cv_results_)
+    cvs = pd.DataFrame(gs_knn.cv_results_)
     cvs = cvs.sort_values(by=['rank_test_score'])
     
     print(gs_knn.best_params_)
@@ -233,21 +239,38 @@ def LogRegression(X_train, X_test, y_train, y_test, max_iter_ = 1):
     print("AUC Score: {}".format(roc_auc))
     print('---------')
    
-    plt.plot(fpr,tpr)
+    ns_fpr, ns_tpr, _ = roc_curve(y_test, prob)
+    lr_fpr, lr_tpr, _ = roc_curve(y_test, prob[:,1])
     
-def Logfeatureimporance(X_train, X_test, y_train, y_test):
-    feature_importance=pd.DataFrame(np.hstack((np.array([X_test.columns[:]]).T, log_reg_clf.coef_.T)), 
+    plt.plot(ns_fpr, ns_tpr, linestyle='--', label='No Skill')
+    plt.plot(fpr, tpr, marker='.', label='Logistic')
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.legend()
+    plt.show()
+    
+    feature_importance=pd.DataFrame(np.hstack((np.array([X_test.columns[:]]).T, tree.coef_.T)), 
                                     columns=['feature', 'importance'])
-    scaler = MinMaxScaler()
-    coef_scaled = scaler.fit_transform(np.array(feature_importance.importance).reshape(-1,1))
+    
+    mean = feature_importance.importance.mean()
+    std = feature_importance.importance.std()
+    coef_lista = []
+    for row in feature_importance.importance:
+        new_calc = ((row - mean)/(std))
+        coef_lista.append(new_calc)
+        
+    feature_importance['coef_importance_scaled'] = coef_lista
+    
+
     importances = feature_importance.reindex(feature_importance.coef_importance_scaled.abs().sort_values(ascending = False).index)
-    return importances[:,10]
+    
+    return importances
     
 def OptimiseLogReg(X_train, X_test, y_train, y_test):
     
     tree = LogisticRegression()
     
-    param_grid = {'max_iter' : [75,100,1000,5000]
+    param_grid = {'max_iter' : [250,500,1000,2500]
                     }                 
 
     gs_lr = GridSearchCV(tree, param_grid, cv=5, scoring=scorer())
@@ -279,7 +302,7 @@ def svm_grid_searched(X_train, X_test, y_train, y_test):
             clf = GridSearchCV(
                 SVC(max_iter = 10000), param_grid, scoring='%s_macro' % score
             )
-            clf.fit(X_rain, y_train)
+            clf.fit(X_train, y_train)
 
             print("Best parameters set found on development set:")
             print()
@@ -303,22 +326,28 @@ def svm_grid_searched(X_train, X_test, y_train, y_test):
             print(classification_report(y_true, y_pred))
             print()
             
-def fit_svm(X_train, X_test, y_train, y_test):
+def SVM(X_train, X_test, y_train, y_test):
     svc_lin_clf = SVC(C=1, probability = True, max_iter = 20)
     svc_lin_clf.fit(X_train, y_train)
     y_true, y_pred = y_test, svc_lin_clf.predict(X_test)
     y_probs = svc_lin_clf.predict_proba(X_test)
     print(classification_report(y_true, y_pred))
     
-    fpr, tpr, thresholds = roc_curve(y_test, y_probs[:,1])
-
+    pred = svc_lin_clf.predict(X_test)
+    prob = svc_lin_clf.predict_proba(X_test)
+    fpr, tpr, thresholds = roc_curve(y_test, prob[:,1])
+    roc_auc = auc(fpr, tpr)
+    
+    matrix_classification_report(y_test, pred)
 
     ns_probs = [0 for _ in range(len(y_probs[:,1]))]
     ns_auc = roc_auc_score(y_test, ns_probs)
     svm_auc = roc_auc_score(y_test, y_probs[:,1])
 
-    print('No Skill: ROC AUC=%.3f' % (ns_auc))
-    print('Support Vinear Machines: ROC AUC=%.3f' % (svm_auc))
+    print('---------')
+    print("AUC Score: {}".format(roc_auc))
+    print('---------')
+    
     ns_fpr, ns_tpr, _ = roc_curve(y_test, ns_probs)
     lr_fpr, lr_tpr, _ = roc_curve(y_test, y_probs[:,1])
     plt.plot(ns_fpr, ns_tpr, linestyle='--', label='No Skill')
