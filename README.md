@@ -21,7 +21,7 @@ The purpose of this project is predict credit card defaults based on previous fi
 * Feature Engineering
 
 ### Technologies
-* Python
+* Python.
 * Pandas, jupyter
 * Logistic Regression
 * K Nearest Neighbours
